@@ -199,7 +199,10 @@ class NITSPrimitive(nn.Module):
         scale = 1 / (end - start)
         bias = -start
 
-        y_scaled = (y + bias) * scale
+        if ar:
+            y_scaled = y + bias
+        else:
+            y_scaled = (y + bias) * scale
 
         # accounting
         pre_activations.append(y_scaled)
@@ -209,7 +212,7 @@ class NITSPrimitive(nn.Module):
 
         if return_intermediaries:
             if ar:
-                return y+bias, pre_activations, As, bs, nonlinearities, residuals, scale
+                return y_scaled, pre_activations, As, bs, nonlinearities, residuals, scale
             else:
                 return y_scaled, pre_activations, As, bs, nonlinearities, residuals
         else:
