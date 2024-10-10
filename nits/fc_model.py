@@ -121,7 +121,7 @@ class Model(nn.Module):
         # compute log likelihood
         if ar:
             pdf, scale = self.nits_model.pdf(x, params, ar=ar) 
-            return pdf + 1e-10, 1/scale
+            return pdf + 1e-10, (1/scale).reshape(*pdf.shape)
         else:
             pdf = (self.nits_model.pdf(x, params, ar=ar) + 1e-10)
             return pdf
