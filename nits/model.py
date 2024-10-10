@@ -188,7 +188,7 @@ class NITSPrimitive(nn.Module):
         else:
             return x
 
-    def normalized_forward(self, x, params, x_unrounded=None, return_intermediaries=False):
+    def normalized_forward(self, x, params, x_unrounded=None, return_intermediaries=False, ar=False):
         # get scaling factors
         start = self.forward_(self.start_(x), params, x_unrounded=x_unrounded)
         end = self.forward_(self.end_(x), params, x_unrounded=x_unrounded)
@@ -208,12 +208,15 @@ class NITSPrimitive(nn.Module):
         residuals.append(False)
 
         if return_intermediaries:
-            return y_scaled, pre_activations, As, bs, nonlinearities, residuals
+            if ar:
+                return y+bias, pre_activations, As, bs, nonlinearities, residuals, scale
+            else:
+                return y_scaled, pre_activations, As, bs, nonlinearities, residuals
         else:
             return y_scaled
 
-    def cdf(self, x, params, x_unrounded=None, return_intermediaries=False):
-        return self.normalized_forward(x, params, x_unrounded, return_intermediaries)
+    def cdf(self, x, params, x_unrounded=None, return_intermediaries=False, ar=False):
+        return self.normalized_forward(x, params, x_unrounded, return_intermediaries, ar=ar)
 
     def fc_gradient(self, grad, pre_activation, A, activation, residual):
         orig_grad = grad
@@ -264,10 +267,15 @@ class NITSPrimitive(nn.Module):
         else:
             return grad
 
-    def pdf(self, x, params, x_unrounded=None, return_intermediaries=False):
-        y, pre_activations, As, bs, nonlinearities, residuals = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True)
+    def pdf(self, x, params, x_unrounded=None, return_intermediaries=False, ar=False):
+        if ar:
+            y, pre_activations, As, bs, nonlinearities, residuals, scale = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True, ar=ar)
+        else:
+            y, pre_activations, As, bs, nonlinearities, residuals = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True)
 
         grad = self.backward_primitive_(y, pre_activations, As, bs, nonlinearities, residuals)
+        if ar:
+            grad = grad.clamp_max(1.0) * scale
         grad = grad + self.monotonic_const * As[-1].reshape(-1, 1)
 
         if return_intermediaries:
@@ -412,11 +420,14 @@ class NITS(nn.Module):
         shared_params = shared_params.reshape(n, -1)
         return shared_params
 
-    def apply_func(self, func, x, params):
+    def apply_func(self, func, x, params, ar=False):
         n = max(len(x), len(params))
         x, params = self.multidim_reshape(x, params)
 
-        result = func(x, params)
+        if func == self.nits.pdf:
+            result = func(x, params, ar=ar)
+        else:
+            result = func(x, params)
 
         if isinstance(result, tuple):
             return (result[0].reshape((n, self.d)),) + result[1:]
@@ -436,8 +447,8 @@ class NITS(nn.Module):
     def icdf(self, x, params):
         return self.apply_func(self.nits.icdf, x, params)
 
-    def pdf(self, x, params):
-        return self.apply_func(self.nits.pdf, x, params)
+    def pdf(self, x, params, ar=False):
+        return self.apply_func(self.nits.pdf, x, params, ar=ar)
 
     def sample(self, n, params):
         if self.share_mixture_components:
