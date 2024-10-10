@@ -281,7 +281,10 @@ class NITSPrimitive(nn.Module):
         if return_intermediaries:
             return grad, pre_activations, As, bs, nonlinearities, residuals
         else:
-            return grad
+            if ar:
+                return grad, scale
+            else:
+                return grad
 
     def sample(self, params, given_x=None):
         z = torch.rand((len(params), 1), device=params.device)
