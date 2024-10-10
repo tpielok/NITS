@@ -119,9 +119,13 @@ class Model(nn.Module):
             params = self.add_normalizer_weights(params)
         
         # compute log likelihood
-        pdf = (self.nits_model.pdf(x, params, ar=ar) + 1e-10)
+        if ar:
+            pdf, scale = self.nits_model.pdf(x, params, ar=ar) 
+            return pdf + 1e-10, 1/scale
+        else:
+            pdf = (self.nits_model.pdf(x, params, ar=ar) + 1e-10)
+            return pdf
         
-        return pdf
     
     def lin_pdf(self, x, dim, n=128):
         assert len(x) == 1
