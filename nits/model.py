@@ -196,13 +196,11 @@ class NITSPrimitive(nn.Module):
         # compute pre-scaled cdf, then scale
         y, pre_activations, As, bs, nonlinearities, residuals = self.forward_(x, params, x_unrounded=x_unrounded, return_intermediaries=True)
 
-        scale = 1 / (end - start)
+        Z = end - start
+        scale = 1 / Z
         bias = -start
 
-        if ar:
-            y_scaled = y + bias
-        else:
-            y_scaled = (y + bias) * scale
+        y_scaled = (y + bias) * scale
 
         # accounting
         pre_activations.append(y_scaled)
@@ -212,7 +210,7 @@ class NITSPrimitive(nn.Module):
 
         if return_intermediaries:
             if ar:
-                return y_scaled, pre_activations, As, bs, nonlinearities, residuals, scale
+                return y_scaled, pre_activations, As, bs, nonlinearities, residuals, Z
             else:
                 return y_scaled, pre_activations, As, bs, nonlinearities, residuals
         else:
@@ -272,20 +270,20 @@ class NITSPrimitive(nn.Module):
 
     def pdf(self, x, params, x_unrounded=None, return_intermediaries=False, ar=False):
         if ar:
-            y, pre_activations, As, bs, nonlinearities, residuals, scale = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True, ar=ar)
+            y, pre_activations, As, bs, nonlinearities, residuals, Z = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True, ar=ar)
         else:
             y, pre_activations, As, bs, nonlinearities, residuals = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True)
 
         grad = self.backward_primitive_(y, pre_activations, As, bs, nonlinearities, residuals)
         if ar:
-            grad = grad.clamp_max(1.0) * scale
+            grad = (grad * Z).clamp_max(1.0) / Z
         grad = grad + self.monotonic_const * As[-1].reshape(-1, 1)
 
         if return_intermediaries:
             return grad, pre_activations, As, bs, nonlinearities, residuals
         else:
             if ar:
-                return grad, scale
+                return grad, Z
             else:
                 return grad
 
