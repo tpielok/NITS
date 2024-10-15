@@ -120,11 +120,13 @@ class Model(nn.Module):
         
         # compute log likelihood
         if ar:
-            pdf, Z = self.nits_model.pdf(x, params, ar=ar, log=False) 
-            return pdf + 1e-10, Z.reshape(*pdf.shape)
-        if ar and log:
-            pdf, Z, clamp_count = self.nits_model.pdf(x, params, ar=ar, log=log) 
-            return pdf + 1e-10, Z.reshape(*pdf.shape), clamp_count            
+            if log:
+                pdf, Z, clamp_count = self.nits_model.pdf(x, params, ar=ar, log=log) 
+                return pdf + 1e-10, Z.reshape(*pdf.shape), clamp_count            
+            else: 
+                pdf, Z = self.nits_model.pdf(x, params, ar=ar, log=False) 
+                return pdf + 1e-10, Z.reshape(*pdf.shape)
+            
         else:
             pdf = (self.nits_model.pdf(x, params) + 1e-10)
             return pdf
