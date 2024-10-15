@@ -268,7 +268,7 @@ class NITSPrimitive(nn.Module):
         else:
             return grad
 
-    def pdf(self, x, params, x_unrounded=None, return_intermediaries=False, ar=False):
+    def pdf(self, x, params, x_unrounded=None, return_intermediaries=False, ar=False, log=False):
         if ar:
             y, pre_activations, As, bs, nonlinearities, residuals, Z = self.cdf(x, params, x_unrounded=x_unrounded, return_intermediaries=True, ar=ar)
         else:
@@ -276,6 +276,9 @@ class NITSPrimitive(nn.Module):
 
         grad = self.backward_primitive_(y, pre_activations, As, bs, nonlinearities, residuals)
         if ar:
+            if log:
+                clamp_count = (grad <= 1/((self.end_val - self.start_val)*Z)).sum()
+                
             grad = (grad * Z).clamp_max(1/(self.end_val - self.start_val)) / Z
         grad = grad + self.monotonic_const * As[-1].reshape(-1, 1)
 
@@ -283,6 +286,9 @@ class NITSPrimitive(nn.Module):
             return grad, pre_activations, As, bs, nonlinearities, residuals
         else:
             if ar:
+                if log:
+                    return grad, Z, clamp_count
+                
                 return grad, Z
             else:
                 return grad
@@ -424,12 +430,12 @@ class NITS(nn.Module):
         shared_params = shared_params.reshape(n, -1)
         return shared_params
 
-    def apply_func(self, func, x, params, ar=False):
+    def apply_func(self, func, x, params, ar=False, log=False):
         n = max(len(x), len(params))
         x, params = self.multidim_reshape(x, params)
 
         if func == self.nits.pdf:
-            result = func(x, params, ar=ar)
+            result = func(x, params, ar=ar, log=log)
         else:
             result = func(x, params)
 
@@ -451,8 +457,8 @@ class NITS(nn.Module):
     def icdf(self, x, params):
         return self.apply_func(self.nits.icdf, x, params)
 
-    def pdf(self, x, params, ar=False):
-        return self.apply_func(self.nits.pdf, x, params, ar=ar)
+    def pdf(self, x, params, ar=False, log=False):
+        return self.apply_func(self.nits.pdf, x, params, ar=ar, log=log)
 
     def sample(self, n, params):
         if self.share_mixture_components:

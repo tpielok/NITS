@@ -105,7 +105,7 @@ class Model(nn.Module):
 
         return data
     
-    def pdf(self, x, ar=False):
+    def pdf(self, x, ar=False, log=False):
         if hasattr(self, 'normalizer'):
             x = self.normalizer(x)
         
@@ -120,8 +120,11 @@ class Model(nn.Module):
         
         # compute log likelihood
         if ar:
-            pdf, Z = self.nits_model.pdf(x, params, ar=ar) 
+            pdf, Z = self.nits_model.pdf(x, params, ar=ar, log=False) 
             return pdf + 1e-10, Z.reshape(*pdf.shape)
+        if ar and log:
+            pdf, Z, clamp_count = self.nits_model.pdf(x, params, ar=ar, log=log) 
+            return pdf + 1e-10, Z.reshape(*pdf.shape), clamp_count            
         else:
             pdf = (self.nits_model.pdf(x, params) + 1e-10)
             return pdf
