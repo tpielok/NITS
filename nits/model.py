@@ -277,7 +277,7 @@ class NITSPrimitive(nn.Module):
         grad = self.backward_primitive_(y, pre_activations, As, bs, nonlinearities, residuals)
         if ar:
             if log:
-                clamp_count = (grad <= 1/((self.end_val - self.start_val)*Z)).sum()
+                clamp_count = (grad > 1/((self.end_val - self.start_val)*Z)).sum()
                 
             grad = (grad * Z).clamp_max(1/(self.end_val - self.start_val)) / Z
         grad = grad + self.monotonic_const * As[-1].reshape(-1, 1)
