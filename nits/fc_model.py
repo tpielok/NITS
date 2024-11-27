@@ -105,7 +105,7 @@ class Model(nn.Module):
 
         return data
     
-    def pdf(self, x, ar=False, log=False):
+    def pdf(self, x, ar=False, log=False, conditional_inputs=None):
         if hasattr(self, 'normalizer'):
             x = self.normalizer(x)
         
@@ -113,7 +113,7 @@ class Model(nn.Module):
         x = self.proj(x)
         
         # obtain parameters
-        params = self.mlp(x)
+        params = self.mlp(x, conditional_inputs=conditional_inputs)
         
         if hasattr(self, 'normalizer'):
             params = self.add_normalizer_weights(params)
